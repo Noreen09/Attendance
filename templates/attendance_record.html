@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Record for {{ month }}-{{ year }}</title>
+</head>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f9;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        min-height: 100vh;
+    }
+
+    h1 {
+        color: #333333;
+        margin-bottom: 20px;
+    }
+
+    table {
+        width: 90%;
+        max-width: 800px;
+        border-collapse: collapse;
+        margin: 20px 0;
+        background-color: #ffffff;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    th, td {
+        border: 1px solid #dddddd;
+        text-align: left;
+        padding: 12px;
+    }
+
+    th {
+        background-color: #007BFF;
+        color: white;
+        text-transform: uppercase;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+
+    td {
+        font-size: 14px;
+        color: #555555;
+    }
+
+    a {
+        margin-top: 20px;
+        text-decoration: none;
+        color: #007BFF;
+        font-weight: bold;
+        font-size: 16px;
+    }
+
+    a:hover {
+        color: #0056b3;
+    }
+
+    button {
+        padding: 10px 20px;
+        font-size: 16px;
+        color: white;
+        background-color: #007BFF;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+        transform: scale(1.05); /* Slightly enlarge button on hover */
+    }
+
+    button:focus {
+        outline: none; /* Remove focus outline */
+    }
+</style>
+<body>
+    <h1>Attendance Record for Employee ID {{ employee_id }} - {{ month }}/{{ year }}</h1>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th>Arrival Time</th>
+                <th>Leave Time</th>
+                <th>Absent?</th>
+                <th>Worked Hours</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in attendance %}
+                <tr>
+                    <td>{{ record.day }}</td>
+                    <td>{{ record.arrival_time }}</td>
+                    <td>{{ record.leave_time }}</td>
+                    <td>{{ record.is_absent }}</td>
+                    <td>{{ record.worked_hours }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{{ url_for('calculate_salary') }}">
+       <button > Back to Salaries </button>
+    </a>
+</body>
+</html>
