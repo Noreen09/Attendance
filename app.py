@@ -14,12 +14,11 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-if app.debug:
-    app.secret_key = "125afaae2e3fc982c7998b2d7f39881d76fe256f39c641c5" 
-else:
-    app.secret_key = os.environ.get("FLASK_SECRET_KEY")
-    if not app.secret_key:
-        raise ValueError("FLASK_SECRET_KEY environment variable not set.")
+app.debug = False  # Explicitly set debug mode to False in production
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
+if not app.secret_key:
+    raise ValueError("FLASK_SECRET_KEY environment variable not set.")
 
 
 # MySQL Connection Setup
