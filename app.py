@@ -263,7 +263,7 @@ def calculate_salary():
 
         for record in attendance_data:
             employee_id = record['employee_id']
-            basic_salary = Decimal(record['basic_salary'])
+            basic_salary = Decimal(record['basic_salary']) if record['basic_salary'] is not None else Decimal(0)
             total_hours = Decimal(record['total_hours'] or 0)
             total_absences = Decimal(record['total_absences'] or 0)
 
