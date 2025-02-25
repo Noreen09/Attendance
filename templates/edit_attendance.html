@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Attendance</title>
+</head>
+
+<body>
+    <h1>Edit Attendance Record</h1>
+    <form method="POST">
+        <input type="hidden" name="record_id" value="{{ record['id'] }}">
+
+        <label for="arrival_time">Arrival Time:</label>
+        <input type="text" name="arrival_time" value="{{ record['arrival_time'] }}" required>
+
+        <label for="leave_time">Leave Time:</label>
+        <input type="text" name="leave_time" value="{{ record['leave_time'] }}" required>
+
+        <label for="is_absent">Absent?</label>
+        <select name="is_absent">
+            <option value="True" {% if record['is_absent'] %}selected{% endif %}>Yes</option>
+            <option value="False" {% if not record['is_absent'] %}selected{% endif %}>No</option>
+        </select>
+
+        <label for="worked_hours">Worked Hours:</label>
+        <input type="number" name="worked_hours" value="{{ record['worked_hours'] }}" required>
+
+        <label for="is_holiday">Holiday?</label>
+        <select name="is_holiday">
+            <option value="True" {% if record['is_holiday'] %}selected{% endif %}>Yes</option>
+            <option value="False" {% if not record['is_holiday'] %}selected{% endif %}>No</option>
+        </select>
+
+        <button type="submit">Save Changes</button>
+    </form>
+</body>
+</html>

@@ -1,17 +1,32 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for , jsonify , flash
 import mysql.connector
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta , date , time
 import calendar
 from decimal import Decimal
+import os
+import traceback  
+import logging
+from mysql.connector import pooling
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 app = Flask(__name__)
 
+if app.debug:
+    app.secret_key = "125afaae2e3fc982c7998b2d7f39881d76fe256f39c641c5" 
+else:
+    app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+    if not app.secret_key:
+        raise ValueError("FLASK_SECRET_KEY environment variable not set.")
+
+
 # MySQL Connection Setup
 db_config = {
     'host': 'localhost',
-    'user': 'root',  
-    'password': '',  
+    'user': 'flaskuser',  
+    'password': 'M1y2s3q4l5!6',  
     'database': 'employee_system'
 }
 
@@ -27,24 +42,22 @@ def create_monthly_table():
         month = today.month
         year = today.year
 
-        # Create table for the current month if it doesn't exist
         table_name = f"attendance_{year}_{month:02d}"
 
-        # Check if table exists
         cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
         result = cursor.fetchone()
 
         if not result:
-            # Create the new table
             cursor.execute(f'''
-                CREATE TABLE {table_name} (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    employee_id INT NOT NULL,
-                    arrival_time TIME,
-                    leave_time TIME,
-                    is_absent BOOLEAN,
-                    worked_hours DECIMAL(5, 2),
-                    date DATE
+                  CREATE TABLE {table_name} (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                employee_id INT NOT NULL,
+                arrival_time TIME,
+                leave_time TIME,
+                is_absent BOOLEAN,
+                worked_hours DECIMAL(5, 2),
+                date DATE,  -- Add the date column here
+                is_holiday BOOLEAN
                 )
             ''')
             conn.commit()
@@ -53,26 +66,41 @@ def create_monthly_table():
     except mysql.connector.Error as err:
         print(f"Error creating table: {err}")
 
-def insert_attendance(employee_id, arrival_time, leave_time, is_absent, worked_hours):
+
+from datetime import time
+
+def insert_attendance(employee_id, arrival_time, leave_time, is_absent, worked_hours, is_holiday, today):
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
 
-        # Get current month and year for table name
-        today = datetime.now()
-        month = today.month
-        year = today.year
-        table_name = f"attendance_{year}_{month:02d}"
+        table_name = f"attendance_{today.year}_{today.month:02d}"
+        print(f"Table: {table_name}")
 
-        # Insert the attendance record into the corresponding table
-        cursor.execute(f'''
-            INSERT INTO {table_name} (employee_id, arrival_time, leave_time, is_absent, worked_hours)
-            VALUES (%s, %s, %s, %s, %s)
-        ''', (employee_id, arrival_time, leave_time, is_absent, worked_hours))
+        query = f"""
+            INSERT INTO {table_name} (employee_id, arrival_time, leave_time, is_absent, worked_hours, date, is_holiday)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+
+        values = (employee_id, arrival_time, leave_time, is_absent, float(worked_hours), today, is_holiday)
+
+        print(f"Inserting values: {values}")
+        cursor.execute(query, values)
         conn.commit()
-        conn.close()
+        print("Attendance inserted successfully.")
+
     except mysql.connector.Error as err:
-        print(f"Error inserting attendance: {err}")
+        print(f"MySQL Error inserting attendance: {err}")
+        conn.rollback() 
+    except Exception as e:
+        print(f"General Error inserting attendance: {e}")
+        conn.rollback() 
+        traceback.print_exc()
+    finally:
+        if conn.is_connected():
+            conn.close()
+
+
 
 # Function to clean up old attendance tables (older than 12 months)
 def cleanup_old_tables():
@@ -80,12 +108,12 @@ def cleanup_old_tables():
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
         
-        # Get current month and year
+       
         today = datetime.now()
         current_month = today.month
         current_year = today.year
         
-        # Remove attendance tables older than 12 months
+        
         for i in range(1, 13):  # Check last 12 months
             month_to_check = current_month - i
             year_to_check = current_year
@@ -93,7 +121,7 @@ def cleanup_old_tables():
                 month_to_check += 12
                 year_to_check -= 1
             
-            # Create the table name for that month
+            
             table_name = f"attendance_{year_to_check}_{month_to_check:02d}"
             
             # Drop the table if it exists
@@ -113,68 +141,110 @@ def initialize():
     cleanup_old_tables()  # Clean up old tables
 
 
+
 # Home route (attendance form)
 @app.route('/')
 def index():
     return render_template('index.html')
 
+
+from datetime import datetime
+from decimal import Decimal
+
+
 @app.route('/submit_attendance', methods=['POST'])
 def submit_attendance():
-    employee_id = request.form['employee_id']
+    print("Request Form:", request.form)
+
+    employee_id = request.form.get('employee_id')
+    print("Employee ID:", employee_id)
+
     is_absent = 'is_absent' in request.form
+    print("Is Absent:", is_absent)
 
-    # Parse arrival, leave, and break times from inputs
-    try:
-        arrival_hour = int(request.form.get('arrival_hour', 0))
-        arrival_minute = int(request.form.get('arrival_minute', 0))
-        leave_hour = int(request.form.get('leave_hour', 0))
-        leave_minute = int(request.form.get('leave_minute', 0))
-        break_minutes = int(request.form.get('break_minutes', 0))
-
-        if not (0 <= arrival_hour <= 23 and 0 <= arrival_minute <= 59):
-            raise ValueError("Invalid arrival time")
-        if not (0 <= leave_hour <= 23 and 0 <= leave_minute <= 59):
-            raise ValueError("Invalid leave time")
-        if not (0 <= break_minutes <= 720):
-            raise ValueError("Invalid break time")
-    except ValueError as e:
-        print(f"Input Error: {e}")
-        return "Invalid time input", 400
+    is_holiday = 1 if request.form.get('is_holiday', 'off') == 'on' else 0
+    print("Is Holiday:", is_holiday)
 
     arrival_time = None
     leave_time = None
     worked_hours = Decimal(0)
 
-    if not is_absent:
-        try:
-            arrival_time = datetime.strptime(f"{arrival_hour:02}:{arrival_minute:02}", "%H:%M")
-            leave_time = datetime.strptime(f"{leave_hour:02}:{leave_minute:02}", "%H:%M")
+    if is_holiday:
+        worked_hours = Decimal(9)
+        print("Marked as Holiday, Worked Hours set to 9")
+    elif is_absent:
+        worked_hours = Decimal(0)
+        print("Marked as Absent, Worked Hours set to 0")
+    else:
+        arrival_hour = request.form.get('arrival_hour')
+        arrival_minute = request.form.get('arrival_minute')
+        leave_hour = request.form.get('leave_hour')
+        leave_minute = request.form.get('leave_minute')
 
-            allowable_break_minutes = 45
-            extra_break_minutes = max(break_minutes - allowable_break_minutes, 0)
+        print("Arrival Hour:", arrival_hour)
+        print("Arrival Minute:", arrival_minute)
+        print("Leave Hour:", leave_hour)
+        print("Leave Minute:", leave_minute)
 
-            worked_seconds = (leave_time - arrival_time).seconds - (extra_break_minutes * 60)
-            worked_hours = Decimal(max(worked_seconds, 0)) / Decimal(3600)
-        except Exception as e:
-            print(f"Error parsing times: {e}")
-            return "Invalid time input", 400
+        if all([arrival_hour, arrival_minute, leave_hour, leave_minute]):
+            try:
+                arrival_hour = int(arrival_hour)
+                arrival_minute = int(arrival_minute)
+                leave_hour = int(leave_hour)
+                leave_minute = int(leave_minute)
 
-    insert_attendance(employee_id, arrival_time, leave_time, is_absent, worked_hours)
+                # Create time objects
+                arrival_time = time(arrival_hour, arrival_minute)
+                leave_time = time(leave_hour, leave_minute)
 
-    return redirect(url_for('index'))
+                print(f"Parsed Arrival Time: {arrival_time}, Leave Time: {leave_time}")
+
+                # Calculate worked hours based on arrival and leave time
+                worked_seconds = (datetime.combine(date.min, leave_time) - 
+                                  datetime.combine(date.min, arrival_time)).seconds
+
+                break_minutes = int(request.form.get('break_minutes', 0))
+                allowable_break_minutes = 45
+                extra_break_minutes = max(break_minutes - allowable_break_minutes, 0)
+                worked_seconds -= (extra_break_minutes * 60)
+                worked_hours = Decimal(max(worked_seconds, 0)) / Decimal(3600)
+                print(f"Calculated Worked Hours: {worked_hours}")
+
+                # Check for zero worked hours scenario
+                if worked_hours <= 0:
+                    worked_hours = Decimal(0)
+                
+            except ValueError as e:
+                print(f"Error parsing times: {e}")
+                flash("Invalid time input. Please provide valid numerical values.", 'danger')
+                return redirect(url_for('index') + '?refresh=true' )
+
+    today = datetime.now().date()
+
+    try:
+        # Ensure arrival_time and leave_time are correctly passed
+        insert_attendance(employee_id, arrival_time, leave_time, is_absent, worked_hours, is_holiday, today)
+        flash("Attendance submitted successfully!", 'success')
+        return redirect(url_for('index'))
+    except Exception as e:
+        print(f"Error in submit_attendance route: {e}")
+        traceback.print_exc()
+        flash("Failed to submit attendance. Please try again later.", 'danger')
+        return redirect(url_for('index' )+ '?refresh=true')
 
 
-
-# Route to calculate monthly salary
 @app.route('/calculate_salary')
 def calculate_salary():
     try:
+        today = datetime.now()
+        current_year = today.year
+        current_month = today.month
         # Get the current month and year
         today = datetime.now()
         month = today.month
         year = today.year
 
-        # Create the table name for the current month
+    
         table_name = f"attendance_{year}_{month:02d}"
 
         conn = mysql.connector.connect(**db_config)
@@ -252,86 +322,101 @@ def calculate_salary():
         print(f"Error: {err}")
         return "Error calculating salaries"
 
-    return render_template('salaries.html', salaries=salaries)
+    return render_template('salaries.html', salaries=salaries ,  current_year=current_year, 
+                               current_month=current_month)
 
 
-# Route to show employee attendance history by day for a specific month
+from datetime import datetime, timedelta
+import calendar
+import mysql.connector
+
+def format_time(time_value):
+    print(f"Time Value: {time_value}, Type: {type(time_value)}")  # Debug print
+    if time_value is None:
+        return 'N/A'
+    elif isinstance(time_value, datetime):
+        return time_value.strftime("%H:%M")
+    elif isinstance(time_value, timedelta):
+        total_seconds = int(time_value.total_seconds())
+        hours = total_seconds // 3600
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}"
+    else:
+        return 'N/A'
+
+
 @app.route('/attendance_record/<int:employee_id>/<int:year>/<int:month>', endpoint='employee_attendance')
 def attendance_record(employee_id, year, month):
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
 
-        cursor.execute('''
-            SELECT 
-                DAY(a.arrival_time) AS day, 
-                a.arrival_time, 
-                a.leave_time, 
-                a.is_absent, 
-                a.worked_hours
-            FROM attendance a
-            WHERE a.employee_id = %s AND YEAR(a.arrival_time) = %s AND MONTH(a.arrival_time) = %s
-            ORDER BY a.arrival_time
-        ''', (employee_id, year, month))
+        table_name = f"attendance_{year}_{month:02d}"
+        print(f"Querying table: {table_name}")
 
-        attendance_data = cursor.fetchall()
-
-        days_in_month = list(range(1, calendar.monthrange(year, month)[1] + 1))
+        days_in_month = calendar.monthrange(year, month)[1]
         attendance_by_day = []
 
-        for day in days_in_month:
-            record = next((r for r in attendance_data if r['day'] == day), None)
-            if record:
-                # Handle arrival_time and leave_time for existing records
-                if record['arrival_time'] is not None:
-                    if isinstance(record['arrival_time'], datetime):
-                        arrival_time_str = record['arrival_time'].strftime("%H:%M")
-                    elif isinstance(record['arrival_time'], timedelta):
-                        total_seconds = int(record['arrival_time'].total_seconds())
-                        hours = total_seconds // 3600
-                        minutes = (total_seconds % 3600) // 60
-                        arrival_time_str = f"{hours:02d}:{minutes:02d}"
-                    else:
-                        arrival_time_str = 'N/A'    
-                else:
-                    arrival_time_str = 'N/A'
+        for day in range(1, days_in_month + 1):
+            current_date = datetime(year, month, day).date()
 
-                if record['leave_time'] is not None:
-                    if isinstance(record['leave_time'], datetime):
-                        leave_time_str = record['leave_time'].strftime("%H:%M")
-                    elif isinstance(record['leave_time'], timedelta):
-                        total_seconds = int(record['leave_time'].total_seconds())
-                        hours = total_seconds // 3600
-                        minutes = (total_seconds % 3600) // 60
-                        leave_time_str = f"{hours:02d}:{minutes:02d}"
-                    else:
-                        leave_time_str = 'N/A'
-                else:
-                    leave_time_str = 'N/A'
+            query = f"""
+                SELECT 
+                    arrival_time, 
+                    leave_time, 
+                    is_absent, 
+                    worked_hours,
+                    date,
+                    is_holiday
+                FROM {table_name}
+                WHERE employee_id = %s AND date = %s
+            """
+            print(f"Executing query: {query} with parameters ({employee_id}, {current_date})") # Print full query with params
+            cursor.execute(query, (employee_id, current_date))
+
+            record = cursor.fetchone()
+
+            if record:
+                arrival_time_str = format_time(record.get('arrival_time')) #use .get() to avoid key errors
+                leave_time_str = format_time(record.get('leave_time'))
 
                 attendance_by_day.append({
+                    
                     'day': day,
+                    'date': current_date.strftime('%Y-%m-%d'), #Format date for template
                     'arrival_time': arrival_time_str,
                     'leave_time': leave_time_str,
-                    'is_absent': 'Yes' if record['is_absent'] else 'No',
-                    'worked_hours': round(record['worked_hours'], 2) if record['worked_hours'] else 0
+                    'is_absent': 'Yes' if record.get('is_absent') else 'No', #use .get() to avoid key errors
+                    'worked_hours': round(record.get('worked_hours', 0), 2), #use .get() to avoid key errors and provide default
+                    'is_holiday': 'Yes' if record.get('is_holiday') else 'No'
                 })
             else:
                 attendance_by_day.append({
                     'day': day,
+                    'date': current_date.strftime('%Y-%m-%d'),
                     'arrival_time': 'N/A',
                     'leave_time': 'N/A',
                     'is_absent': 'Yes',
-                    'worked_hours': 0
+                    'worked_hours': 0,
+                    'is_holiday': 'No'
                 })
 
-        conn.close()
+    
 
+        conn.close()
+        print(f"Attendance Data: {attendance_by_day}") # Print the data being sent to the template
         return render_template('attendance_record.html', attendance=attendance_by_day, year=year, month=month, employee_id=employee_id)
 
     except mysql.connector.Error as err:
-        print(f"Database Error: {err}")
-        return "Error fetching attendance records."
+        error_message = f"Database Error: {err}"
+        print(error_message)
+        traceback.print_exc()
+        return error_message, 500
+    except Exception as e:
+        error_message = f"An unexpected error occurred: {e}"
+        print(error_message)
+        traceback.print_exc()
+        return error_message, 500
 
 
 @app.route('/add_employee', methods=['GET', 'POST'])
@@ -339,9 +424,8 @@ def add_employee():
     if request.method == 'POST':
         name = request.form['name']
         position = request.form['position']
-        basic_salary = request.form['basic_salary']
+       
         
-
         try:
             # Connect to the MySQL database
             conn = mysql.connector.connect(**db_config)
@@ -349,14 +433,15 @@ def add_employee():
 
             # Insert the new employee into the 'employees' table
             cursor.execute('''
-                INSERT INTO employees (name, position, basic_salary)
-                VALUES (%s, %s, %s)
-            ''', (name, position, basic_salary))
+                INSERT INTO employees (name, position)
+                VALUES (%s, %s)
+            ''', (name, position))
 
             conn.commit()
             conn.close()
-
-            return redirect(url_for('index'))
+           
+            # After adding employee, redirect to the employee list page with refresh parameter
+            return redirect(url_for('list_employees')+ '?reload=true')
 
         except mysql.connector.Error as err:
             print(f"Error inserting employee: {err}")
@@ -379,7 +464,7 @@ def list_employees():
         conn.close()
 
         # Render the employee list template
-        return render_template('employee_list.html', employees=employees)
+        return render_template('employee_list.html', employees=employees )
     except mysql.connector.Error as err:
         print(f"Error: {err}")
         return "Error fetching employees", 500
@@ -412,14 +497,14 @@ def edit_employee(employee_id):
     if request.method == 'POST':
         name = request.form['name']
         position = request.form['position']
-        basic_salary = request.form['basic_salary']
+       
         
         
         cursor.execute("""
             UPDATE employees
-            SET name = %s, position = %s, basic_salary = %s
+            SET name = %s, position = %s
             WHERE employee_id = %s
-        """, (name, position, basic_salary, employee_id))
+        """, (name, position, employee_id))
         
         conn.commit()
         conn.close()
@@ -431,8 +516,138 @@ def edit_employee(employee_id):
     return render_template('edit_employee.html', employee=employee)
 
 
-# Run the app
+
+from datetime import datetime
+import mysql.connector
+
+@app.route('/mark_holiday', methods=['POST'])
+def mark_holiday():
+    try:
+        today = datetime.now().date()  # Get today's date
+        month = today.month
+        year = today.year
+        table_name = f"attendance_{year}_{month:02d}"
+
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
+
+        # Check if holiday has already been marked for today
+        cursor.execute(f"SELECT COUNT(*) FROM {table_name} WHERE date = %s AND is_holiday = 1", (today,))
+        holiday_exists = cursor.fetchone()[0]
+
+        if holiday_exists > 0:
+            conn.close()
+            return "Holiday already marked for today.", 200  # Or a more appropriate message
+
+        cursor.execute('SELECT employee_id FROM employees')
+        employees = cursor.fetchall()
+
+        for employee in employees:
+            employee_id = employee[0] # Access employee_id correctly
+
+            # Insert holiday record
+            try:
+                cursor.execute(f"""
+                    INSERT INTO {table_name} (employee_id, arrival_time, leave_time, is_absent, worked_hours, date, is_holiday)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (employee_id, None, None, False, 9, today, 1)) 
+                conn.commit()  
+            except mysql.connector.IntegrityError:  
+                print(f"Holiday already recorded for employee {employee_id} on {today}")
+                conn.rollback() 
+                continue 
+
+        conn.close()
+        return "Holiday marked successfully for all employees.", 200
+    except mysql.connector.Error as err:
+        print(f"Error marking holiday: {err}")
+        if 'conn' in locals() and conn.is_connected(): 
+            conn.close()
+        return "Error marking holiday.", 500
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        traceback.print_exc()
+        return "An unexpected error occurred.", 500
+
+
+
+ 
+def get_current_month_table_name():
+    today = datetime.now()
+    month = today.month
+    year = today.year
+    return f"attendance_{year}_{month:02d}"
+
+@app.route('/update_attendance', methods=['POST'])
+def update_attendance():
+    try:
+        # Get form data
+        employee_id = request.form.get('employee_id')
+        date = request.form.get('date')
+        arrival_time = request.form.get('arrival_time')
+        leave_time = request.form.get('leave_time')
+        worked_hours = request.form.get('worked_hours')
+        is_absent = request.form.get('is_absent') == 'on'
+        is_holiday = request.form.get('is_holiday') == 'on'
+
+        # Convert times and worked hours
+        arrival_time_obj = datetime.strptime(arrival_time, "%H:%M").time() if arrival_time else None
+        leave_time_obj = datetime.strptime(leave_time, "%H:%M").time() if leave_time else None
+        worked_hours = Decimal(worked_hours)
+
+        # Database connection
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
+
+        year, month, _ = date.split('-')
+        table_name = f"attendance_{year}_{month}"
+
+        # Update query
+        update_query = f"""
+            UPDATE {table_name}
+            SET arrival_time = %s, leave_time = %s, worked_hours = %s, is_absent = %s, is_holiday = %s
+            WHERE employee_id = %s AND date = %s
+        """
+        cursor.execute(update_query, (arrival_time_obj, leave_time_obj, worked_hours, is_absent, is_holiday, employee_id, date))
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "message": "Attendance updated successfully."})
+
+    except Exception as e:
+        print(f"Error: {e}")
+        traceback.print_exc()
+        return jsonify({"success": False, "message": "Failed to update attendance. Please try again."}), 400
+
+
+
+
+db_pool = pooling.MySQLConnectionPool(pool_name="mypool",
+                                      pool_size=5,
+                                      **db_config)
+
+@app.route('/search_employee')
+def search_employee():
+    connection = db_pool.get_connection()
+    cursor = connection.cursor(dictionary=True)
+    
+    name = request.args.get('name', '').lower()
+    if len(name) < 3:
+        return jsonify([])
+
+    query = "SELECT employee_id, name FROM employees WHERE name LIKE %s"
+    cursor.execute(query, (f'%{name}%',))
+    employees = cursor.fetchall()
+    
+    cursor.close()
+    connection.close()
+
+    return jsonify([{'id': emp['employee_id'], 'name': emp['name']} for emp in employees])
+
+
+
 if __name__ == '__main__':
-    # Initialize tables and cleanup old tables before the app starts handling requests
     initialize()
     app.run(debug=True)

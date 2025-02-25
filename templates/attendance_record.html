@@ -4,116 +4,254 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attendance Record for {{ month }}-{{ year }}</title>
+    <!-- Add Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Custom styling for the table */
+        body {
+            padding-top: 100px;
+        }
+        .table th, .table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .table thead {
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+
+        .table-bordered th, .table-bordered td {
+            border: 1px solid #dee2e6;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 24px;
+            color: #6c757d;
+        }
+
+        .edit-button {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+
+        .edit-button:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+
+        .modal-content {
+            border-radius: 10px;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+        }
+    </style>
 </head>
-
-<style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        background-color: #f4f4f9;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        min-height: 100vh;
-    }
-
-    h1 {
-        color: #333333;
-        margin-bottom: 20px;
-    }
-
-    table {
-        width: 90%;
-        max-width: 800px;
-        border-collapse: collapse;
-        margin: 20px 0;
-        background-color: #ffffff;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    th, td {
-        border: 1px solid #dddddd;
-        text-align: left;
-        padding: 12px;
-    }
-
-    th {
-        background-color: #007BFF;
-        color: white;
-        text-transform: uppercase;
-    }
-
-    tr:nth-child(even) {
-        background-color: #f2f2f2;
-    }
-
-    td {
-        font-size: 14px;
-        color: #555555;
-    }
-
-    a {
-        margin-top: 20px;
-        text-decoration: none;
-        color: #007BFF;
-        font-weight: bold;
-        font-size: 16px;
-    }
-
-    a:hover {
-        color: #0056b3;
-    }
-
-    button {
-        padding: 10px 20px;
-        font-size: 16px;
-        color: white;
-        background-color: #007BFF;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background-color 0.3s ease, transform 0.2s ease;
-    }
-
-    button:hover {
-        background-color: #0056b3;
-        transform: scale(1.05); /* Slightly enlarge button on hover */
-    }
-
-    button:focus {
-        outline: none; /* Remove focus outline */
-    }
-</style>
+{% include 'navbar.html' %}
 <body>
+    
     <h1>Attendance Record for Employee ID {{ employee_id }} - {{ month }}/{{ year }}</h1>
 
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Day</th>
-                <th>Arrival Time</th>
-                <th>Leave Time</th>
-                <th>Absent?</th>
-                <th>Worked Hours</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for record in attendance %}
+    <div class="container">
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Arrival Time</th>
+                    <th>Leave Time</th>
+                    <th>Absent?</th>
+                    <th>Worked Hours</th>
+                    <th>Holiday?</th>
+                    <th>Edit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in attendance %}
                 <tr>
                     <td>{{ record.day }}</td>
+                    <td>{{ record.date }}</td>
                     <td>{{ record.arrival_time }}</td>
                     <td>{{ record.leave_time }}</td>
                     <td>{{ record.is_absent }}</td>
                     <td>{{ record.worked_hours }}</td>
+                    <td>{{ record.is_holiday }}</td>
+                    <td>
+                        <button class="edit-button btn btn-primary" onclick="showEditForm('{{ record.id }}', '{{ record.arrival_time }}', '{{ record.leave_time }}', '{{ record.worked_hours }}', '{{ record.is_absent }}', '{{ record.is_holiday }}', '{{ record.date }}', '{{ employee_id }}')">Edit</button>
+                    </td>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                {% endfor %}
+            </tbody>
+        </table>
 
-    <a href="{{ url_for('calculate_salary') }}">
-       <button > Back to Salaries </button>
-    </a>
+        <a href="{{ url_for('calculate_salary') }}">
+            <button class="btn btn-secondary mt-3">Back to Salaries</button>
+        </a>
+    </div>
+
+    <!-- Modal for editing attendance -->
+    <div class="modal" tabindex="-1" id="attendanceModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="editForm" method="POST" action="/update_attendance">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Attendance</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="employee_id" id="modal_employee_id">
+                        <input type="hidden" name="date" id="modal_date">
+
+                        <div class="mb-3">
+                            <label for="arrival_time" class="form-label">Arrival Time</label>
+                            <input type="time" class="form-control" name="arrival_time" id="modal_arrival_time">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="leave_time" class="form-label">Leave Time</label>
+                            <input type="time" class="form-control" name="leave_time" id="modal_leave_time">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="worked_hours" class="form-label">Worked Hours</label>
+                            <input type="number" class="form-control" name="worked_hours" id="modal_worked_hours" step="0.01">
+                        </div>
+
+                        <div class="mb-3">
+                            <input type="checkbox" name="is_absent" id="modal_is_absent">
+                            <label for="is_absent">Absent</label>
+                        </div>
+
+                        <div class="mb-3">
+                            <input type="checkbox" name="is_holiday" id="modal_is_holiday">
+                            <label for="is_holiday">Holiday</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary">Save changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    function showEditForm(recordId, arrivalTime, leaveTime, workedHours, isAbsent, isHoliday, recordDate, employeeId) {
+    document.getElementById('modal_employee_id').value = employeeId;
+    document.getElementById('modal_date').value = recordDate;
+    document.getElementById('modal_arrival_time').value = arrivalTime;
+    document.getElementById('modal_leave_time').value = leaveTime;
+    document.getElementById('modal_worked_hours').value = workedHours;
+    document.getElementById('modal_is_absent').checked = isAbsent === '1' || isAbsent === true;
+    document.getElementById('modal_is_holiday').checked = isHoliday === '1' || isHoliday === true;
+
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('attendanceModal'));
+    modal.show();
+
+    // Set initial toggle state
+    toggleTimeInputs();
+}
+
+function toggleTimeInputs() {
+    const arrivalTimeInput = document.getElementById('modal_arrival_time');
+    const leaveTimeInput = document.getElementById('modal_leave_time');
+    const isAbsentChecked = document.getElementById('modal_is_absent').checked;
+    const isHolidayChecked = document.getElementById('modal_is_holiday').checked;
+
+    // Disable time inputs if absent or holiday is checked
+    arrivalTimeInput.disabled = isAbsentChecked || isHolidayChecked;
+    leaveTimeInput.disabled = isAbsentChecked || isHolidayChecked;
+
+    // Automatically set worked hours based on absence or holiday
+    if (isAbsentChecked) {
+        document.getElementById('modal_worked_hours').value = '0';
+    } else if (isHolidayChecked) {
+        document.getElementById('modal_worked_hours').value = '9';
+    } else {
+        // Clear worked hours if neither is selected
+        document.getElementById('modal_worked_hours').value = '';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const editForm = document.getElementById('editForm');
+
+    editForm.addEventListener('submit', function (e) {
+        e.preventDefault(); // Prevent default form submission
+
+        const formData = new FormData(editForm);
+
+        fetch('/update_attendance', {
+            method: 'POST',
+            body: formData,
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload(); // Refresh page to show updated data
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            })
+            .catch(error => console.error('Error updating attendance:', error));
+    });
+
+    function calculateWorkedHours() {
+        const arrivalTime = document.getElementById('modal_arrival_time').value;
+        const leaveTime = document.getElementById('modal_leave_time').value;
+
+        const isAbsentChecked = document.getElementById('modal_is_absent').checked;
+        const isHolidayChecked = document.getElementById('modal_is_holiday').checked;
+
+        // Skip calculation if absent or holiday
+        if (isAbsentChecked) {
+            document.getElementById('modal_worked_hours').value = '0';
+            return;
+        }
+        if (isHolidayChecked) {
+            document.getElementById('modal_worked_hours').value = '9';
+            return;
+        }
+
+        if (arrivalTime && leaveTime) {
+            const arrival = new Date('1970-01-01T' + arrivalTime + 'Z');
+            const leave = new Date('1970-01-01T' + leaveTime + 'Z');
+
+            let workedHours = (leave - arrival) / 3600000; // Convert milliseconds to hours
+
+            // If leave time is before arrival time (indicating it's past midnight)
+            if (workedHours < 0) {
+                workedHours += 24;
+            }
+
+            // Set the calculated worked hours
+            document.getElementById('modal_worked_hours').value = workedHours.toFixed(2);
+        }
+    }
+
+    // Ensure time inputs are toggled correctly
+    document.getElementById('modal_is_absent').addEventListener('change', toggleTimeInputs);
+    document.getElementById('modal_is_holiday').addEventListener('change', toggleTimeInputs);
+    document.getElementById('modal_arrival_time').addEventListener('input', calculateWorkedHours);
+    document.getElementById('modal_leave_time').addEventListener('input', calculateWorkedHours);
+});
+
+  </script>
 </body>
 </html>

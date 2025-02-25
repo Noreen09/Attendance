@@ -1,189 +1,321 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Attendance Form</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .container {
-            background-color: #ffffff;
-            padding: 20px 40px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 500px;
-        }
-
-        h1 {
-            text-align: center;
-            color: #333333;
-        }
-
-        form {
-            margin-top: 20px;
-        }
-
-        label {
-            font-size: 16px;
-            color: #333333;
-            margin-bottom: 5px;
-            display: block;
-        }
-
-        .time-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-
-        .time-row label {
-            flex: 1;
-            font-size: 14px;
-            color: #555;
-        }
-
-        .time-row .time-group {
-            flex: 2;
-            display: flex;
-            gap: 5px;
-            align-items: center;
-        }
-
-        input[type="text"], input[type="number"], button {
-            width: 100%;
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 16px;
-        }
-
-        input[type="checkbox"] {
-            margin-right: 10px;
-        }
-
-        button {
-            background-color: #007BFF;
-            color: #ffffff;
-            border: none;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
-        .time-input {
-            width: 60px;
-            text-align: center;
-        }
-
-        a {
-            text-decoration: none;
-            color: #007BFF;
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            font-size: 16px;
-        }
-
-        a:hover {
-            color: #0056b3;
-        }
-
-        .note {
-            font-size: 14px;
-            color: #777777;
-            text-align: center;
-            margin-top: -15px;
-        }
-    </style>
+   <html lang="en">
+   <head>
     <script>
-        // This function will run when the form is submitted or when the user changes input.
+        // Fetch employee IDs function
+        // Fetch employee IDs function
+        function fetchEmployeeIDs() {
+    const name = document.getElementById('employee_id').value;
+    console.log('Searching for: ' + name);
+
+    if (name.length >= 3) {
+        fetch(`/search_employee?name=${name}&t=${Date.now()}`) // Add `&t=${Date.now()}` to avoid cache
+            .then(response => response.json())
+            .then(data => {
+                console.log('Suggestions: ', data); // Check what the backend sends back
+                const suggestionsContainer = document.getElementById('employee_suggestions');
+                suggestionsContainer.innerHTML = ''; // Clear previous suggestions
+
+                data.forEach(employee => {
+                    const suggestion = document.createElement('div');
+                    suggestion.textContent = `${employee.name} (ID: ${employee.id})`;
+                    suggestion.classList.add('suggestion-item');
+                    suggestion.onclick = function() {
+                        document.getElementById('employee_id').value = employee.id; // Fill input with ID
+                        suggestionsContainer.innerHTML = '';  // Clear suggestions
+                        suggestionsContainer.style.display = 'none'; // Hide dropdown immediately
+                    };
+                    suggestionsContainer.appendChild(suggestion);
+                });
+
+                // Display the suggestions if data exists
+                suggestionsContainer.style.display = data.length > 0 ? 'block' : 'none';
+            })
+            .catch(error => {
+                console.log('Error fetching employees:', error);
+            });
+    } else {
+        // Hide suggestions if the input is too short
+        document.getElementById('employee_suggestions').style.display = 'none';
+    }
+}
+
+        // Trigger fetch when page is loaded and check for 'refresh' query
+        document.addEventListener('DOMContentLoaded', function () {
+            toggleTimeInputs();
+
+            // Check if the page has 'refresh' query parameter
+            if (new URLSearchParams(window.location.search).has('reload')) {
+                fetchEmployeeIDs(); // Trigger the fetch function automatically
+            }
+        });
+
         function toggleTimeInputs() {
             const isAbsentCheckbox = document.getElementById('is_absent');
             const timeInputs = document.querySelectorAll('.time-input');
+            const breakInput = document.getElementById('break_minutes');
             timeInputs.forEach(input => input.disabled = isAbsentCheckbox.checked);
+            breakInput.disabled = isAbsentCheckbox.checked; // Disable break input as well
         }
 
-        document.addEventListener('DOMContentLoaded', function () {
-            toggleTimeInputs(); // Call on page load to handle the initial state
+        function toggleHoliday() {
+            const isHoliday = document.getElementById("holiday_checkbox").checked;
+            const arrivalFields = document.querySelectorAll('#arrival_hour, #arrival_minute');
+            const leaveFields = document.querySelectorAll('#leave_hour, #leave_minute');
+            const breakField = document.getElementById('break_minutes');
+            const isAbsentCheckbox = document.getElementById('is_absent');
 
-            // Default minutes if not filled
-            document.querySelector('form').addEventListener('submit', function(event) {
-                const arrivalMinuteInput = document.getElementById('arrival_minute');
-                const leaveMinuteInput = document.getElementById('leave_minute');
+            arrivalFields.forEach(field => field.disabled = isHoliday);
+            leaveFields.forEach(field => field.disabled = isHoliday);
+            breakField.disabled = isHoliday;
+            isAbsentCheckbox.disabled = isHoliday; //disable is_absent checkbox
 
-                // If arrival minutes are empty, set it to 00
-                if (!arrivalMinuteInput.value) {
-                    arrivalMinuteInput.value = '00';
-                }
+            if (isHoliday) {
+                isAbsentCheckbox.checked = false; // Uncheck absent if holiday is checked
+            }
+        }
 
-                // If leave minutes are empty, set it to 00
-                if (!leaveMinuteInput.value) {
-                    leaveMinuteInput.value = '00';
-                }
-            });
+        document.querySelector('form').addEventListener('submit', function(event) {
+            const arrivalHourInput = document.getElementById('arrival_hour');
+            const arrivalMinuteInput = document.getElementById('arrival_minute');
+            const leaveHourInput = document.getElementById('leave_hour');
+            const leaveMinuteInput = document.getElementById('leave_minute');
+
+            // Set the default value for minutes if empty
+            if (!arrivalMinuteInput.value) {
+                arrivalMinuteInput.value = '00';
+            }
+
+            if (!leaveMinuteInput.value) {
+                leaveMinuteInput.value = '00';
+            }
+
+            // Validate that all time fields have values
+            if (!arrivalHourInput.value || !arrivalMinuteInput.value ||
+                !leaveHourInput.value || !leaveMinuteInput.value) {
+                alert("All time fields must be filled.");
+                event.preventDefault(); // Prevent form submission
+            }
+
+            // Validate the leave time against arrival time
+            if (!validateTimes()) {
+                event.preventDefault();  // Prevent submission if validation fails
+            }
         });
+
+        function validateTimes() {
+            const arrivalHour = document.getElementById("arrival_hour").value;
+            const arrivalMinute = document.getElementById("arrival_minute").value;
+            const leaveHour = document.getElementById("leave_hour").value;
+            const leaveMinute = document.getElementById("leave_minute").value;
+
+            if (parseInt(leaveHour) < parseInt(arrivalHour) ||
+                (parseInt(leaveHour) === parseInt(arrivalHour) && parseInt(leaveMinute) < parseInt(arrivalMinute))) {
+                alert("Leave time cannot be earlier than arrival time.");
+                return false;
+            }
+            return true;
+        }
     </script>
-</head>
-<body>
-    <div class="container">
-        <h1>Attendance Form</h1>
-        <form action="/submit_attendance" method="POST">
-            <label for="employee_id">Employee ID:</label>
-            <input type="text" id="employee_id" name="employee_id" required>
+   </head>
 
-            <div class="time-row">
-                <label for="arrival_hour">Arrival Time:</label>
-                <div class="time-group">
-                    <input type="number" id="arrival_hour" name="arrival_hour" class="time-input" min="0" max="23" placeholder="HH" required>
-                    <span>:</span>
-                    <input type="number" id="arrival_minute" name="arrival_minute" class="time-input" min="0" max="59" placeholder="MM">
-                </div>
-            </div>
+   <style>
+   
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f4f4f9;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        padding-top: 100px;
+    }
 
-            <div class="time-row">
-                <label for="leave_hour">Leave Time:</label>
-                <div class="time-group">
-                    <input type="number" id="leave_hour" name="leave_hour" class="time-input" min="0" max="23" placeholder="HH" required>
-                    <span>:</span>
-                    <input type="number" id="leave_minute" name="leave_minute" class="time-input" min="0" max="59" placeholder="MM">
-                </div>
-            </div>
+    .container {
+        background-color: #ffffff;
+        padding: 20px 40px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 500px;
+        margin-top: 60px; 
+    }
 
-            <div class="time-row">
-                <label for="break_minutes">Break Time (in minutes):</label>
-                <div class="time-group">
-                    <input type="number" id="break_minutes" name="break_minutes" class="time-input" min="0" max="720" placeholder="MM" required>
-                </div>
-            </div>
 
-            <div>
-                <input type="checkbox" id="is_absent" name="is_absent" onchange="toggleTimeInputs()">
-                <label for="is_absent">Mark Absent</label>
-            </div>
+    h1 {
+        text-align: center;
+        color: #333333;
+    }
 
-            <button type="submit">Submit Attendance</button>
-        </form>
-        <br>
-        <div class="note">*Mark absent to disable time inputs.</div>
-        <a href="/calculate_salary">View Monthly Salaries</a>
-        <a href="{{ url_for('add_employee') }}">
-            <button>Add Employee</button>
-        </a>
-    </div>
-</body>
-</html>
+    form {
+        margin-top: 20px;
+    }
+
+    label {
+        font-size: 16px;
+        color: #333333;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    .time-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+    }
+
+    .time-row label {
+        flex: 1;
+        font-size: 14px;
+        color: #555;
+    }
+
+    .time-row .time-group {
+        flex: 2;
+        display: flex;
+        gap: 5px;
+        align-items: center;
+    }
+
+    input[type="text"], input[type="number"], button {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        font-size: 16px;
+    }
+
+    input[type="checkbox"] {
+        margin-right: 10px;
+    }
+
+    button {
+        background-color: #007BFF;
+        color: #ffffff;
+        border: none;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+    .time-input {
+        width: 60px;
+        text-align: center;
+    }
+
+    a {
+        text-decoration: none;
+        color: #007BFF;
+        display: block;
+        text-align: center;
+        margin-top: 20px;
+        font-size: 16px;
+    }
+
+    a:hover {
+        color: #0056b3;
+    }
+
+    .note {
+        font-size: 14px;
+        color: #777777;
+        text-align: center;
+        margin-top: -15px;
+    }
+
+    input[disabled] {
+background-color: #e9ecef;
+cursor: not-allowed;
+}
+
+.suggestion-item {
+            padding: 8px;
+            cursor: pointer;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            margin-top: 2px;
+        }
+
+        .suggestion-item:hover {
+            background-color: #007BFF;
+            color: white;
+        }
+
+        #employee_suggestions {
+            border: 1px solid #ddd;
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: white;
+            position: absolute;
+            z-index: 1000;
+            width: 100%;
+        }
+
+</style>
+{% include 'navbar.html' %}
+   <body>
+    
+   
+    
+       <div class="container"><br/><br/><br/>
+        
+           <h1>Attendance Form</h1>
+           <form action="/submit_attendance" method="POST">
+            <label for="employee_id">Employee Name</label>
+        
+            <input type="text" id="employee_id" name="employee_id" oninput="fetchEmployeeIDs()" required>
+            <!-- Suggestions container -->
+            <div id="employee_suggestions"></div><br>
+   
+               <div class="time-row">
+                   <label for="arrival_hour">Arrival Time:</label>
+                   <div class="time-group">
+                       <input type="number" id="arrival_hour" name="arrival_hour" class="time-input" min="0" max="23" placeholder="HH" required>
+                       <span>:</span>
+                       <input type="number" id="arrival_minute" name="arrival_minute" class="time-input" min="0" max="59" placeholder="MM">
+                   </div>
+               </div>
+   
+               <div class="time-row">
+                   <label for="leave_hour">Leave Time:</label>
+                   <div class="time-group">
+                       <input type="number" id="leave_hour" name="leave_hour" class="time-input" min="0" max="23" placeholder="HH" required>
+                       <span>:</span>
+                       <input type="number" id="leave_minute" name="leave_minute" class="time-input" min="0" max="59" placeholder="MM">
+                   </div>
+               </div>
+   
+               <div class="time-row">
+                   <label for="break_minutes">Break Time (in minutes):</label>
+                   <div class="time-group">
+                       <input type="number" id="break_minutes" name="break_minutes" class="time-input" min="0" max="720" placeholder="MM" required>
+                   </div>
+               </div>
+   
+               <div>
+                   <input type="checkbox" id="is_absent" name="is_absent" onchange="toggleTimeInputs()">
+                   <label for="is_absent">Mark Absent</label>
+               </div>
+               <div>
+                   <input type="checkbox" id="holiday_checkbox" name="is_holiday" onchange="toggleHoliday()">
+                   <label for="holiday_checkbox">Mark as Holiday</label>
+               </div>
+   
+               <button type="submit">Submit Attendance</button>
+           </form>
+           <br>
+           <div class="note">*Mark absent to disable time inputs.</div>
+           <a href="/calculate_salary">View Monthly Salaries</a>
+           <a href="{{ url_for('add_employee') }}">
+               <button>Add Employee</button>
+           </a>
+           <a href="/employees" class="back-button">Employee List</a>
+       </div>
+   </body>
+   </html>

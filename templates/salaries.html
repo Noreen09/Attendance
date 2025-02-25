@@ -15,6 +15,7 @@
             align-items: center;
             flex-direction: column;
             min-height: 100vh;
+            padding-top: 100px;
         }
 
         h1 {
@@ -65,32 +66,33 @@
         }
     </style>
 </head>
+{% include 'navbar.html' %}
 <body>
-    <h1>Employee Monthly Salaries</h1>
+    <h1>EMS</h1>
     <table>
         <thead>
             <tr>
                 <th>Employee ID</th>
-                <th>Basic Salary</th>
+                
                 <th>Total Worked Hours</th>
                 <th>Total Absences</th>
                 <th>Counted Absences</th>
-                <th>Final Salary</th>
+                
             </tr>
         </thead>
         <tbody>
             {% for salary in salaries %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('employee_attendance', employee_id=salary.employee_id, year=2024, month=12) }}">
+                        <a href="{{ url_for('employee_attendance', employee_id=salary.employee_id, year=current_year, month=current_month) }}">
                             {{ salary.employee_id }}
                         </a>
                     </td>
-                    <td>{{ '{:.2f}'.format(salary.basic_salary) }}</td>
+                    
                     <td>{{ '{:.2f}'.format(salary.total_hours) }}</td>
                     <td>{{ '{:.2f}'.format(salary.total_absences) }}</td>
                     <td>{{ '{:.2f}'.format(salary.counted_absences) }}</td>
-                    <td>{{ '{:.2f}'.format(salary.salary) }}</td>
+                    
                 </tr>
             {% endfor %}
         </tbody>

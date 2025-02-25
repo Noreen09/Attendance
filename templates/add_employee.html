@@ -13,6 +13,7 @@
             background-color: #f4f4f4;
             margin: 0;
             padding: 0;
+            padding-top: 100px;
         }
 
         .container {
@@ -89,6 +90,7 @@
         }
     </style>
 </head>
+{% include 'navbar.html' %}
 <body>
     <div class="container">
         <h1>Add Employee</h1>
@@ -103,10 +105,6 @@
                 <input type="text" id="position" name="position" required>
             </div>
 
-            <div class="form-group">
-                <label for="basic_salary">Basic Salary:</label>
-                <input type="number" id="basic_salary" name="basic_salary" step="0.01" required>
-            </div>
 
             <button type="submit">Add Employee</button>
         </form>
