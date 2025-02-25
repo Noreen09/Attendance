@@ -454,11 +454,14 @@ def add_employee():
 def list_employees():
     try:
         conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor(dictionary=True)
+        cursor = conn.cursor()
 
         # Fetch all employees from the database
-        cursor.execute('SELECT * FROM employees')
-        employees = cursor.fetchall()
+        cursor.execute('SELECT employee_id, name, position FROM employees')
+        rows = cursor.fetchall()
+
+        # Convert list of tuples to list of dictionaries
+        employees = [{'employee_id': row[0], 'name': row[1], 'position': row[2]} for row in rows]
 
         conn.close()
 
