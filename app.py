@@ -7,6 +7,8 @@ import os
 import traceback  
 import logging
 from mysql.connector import pooling
+from flask import abort
+
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -351,72 +353,52 @@ def attendance_record(employee_id, year, month):
         cursor = conn.cursor(dictionary=True)
 
         table_name = f"attendance_{year}_{month:02d}"
-        print(f"Querying table: {table_name}")
+        
+        # Check if table exists
+        cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
+        if not cursor.fetchone():
+            return f"Error: Table {table_name} does not exist.", 404
+
+        # Fetch all records at once
+        query = f"""
+            SELECT 
+                date, arrival_time, leave_time, is_absent, worked_hours, is_holiday
+            FROM {table_name}
+            WHERE employee_id = %s
+        """
+        cursor.execute(query, (employee_id,))
+        records = {record["date"]: record for record in cursor.fetchall()}
 
         days_in_month = calendar.monthrange(year, month)[1]
         attendance_by_day = []
 
         for day in range(1, days_in_month + 1):
             current_date = datetime(year, month, day).date()
+            record = records.get(current_date)
 
-            query = f"""
-                SELECT 
-                    arrival_time, 
-                    leave_time, 
-                    is_absent, 
-                    worked_hours,
-                    date,
-                    is_holiday
-                FROM {table_name}
-                WHERE employee_id = %s AND date = %s
-            """
-            print(f"Executing query: {query} with parameters ({employee_id}, {current_date})") # Print full query with params
-            cursor.execute(query, (employee_id, current_date))
+            attendance_by_day.append({
+                'day': day,
+                'date': current_date.strftime('%Y-%m-%d'),
+                'arrival_time': format_time(record.get('arrival_time')) if record else 'N/A',
+                'leave_time': format_time(record.get('leave_time')) if record else 'N/A',
+                'is_absent': 'Yes' if record and record.get('is_absent') else 'No',
+                'worked_hours': round(record.get('worked_hours', 0), 2) if record else 0,
+                'is_holiday': 'Yes' if record and record.get('is_holiday') else 'No'
+            })
 
-            record = cursor.fetchone()
-
-            if record:
-                arrival_time_str = format_time(record.get('arrival_time')) #use .get() to avoid key errors
-                leave_time_str = format_time(record.get('leave_time'))
-
-                attendance_by_day.append({
-                    
-                    'day': day,
-                    'date': current_date.strftime('%Y-%m-%d'), #Format date for template
-                    'arrival_time': arrival_time_str,
-                    'leave_time': leave_time_str,
-                    'is_absent': 'Yes' if record.get('is_absent') else 'No', #use .get() to avoid key errors
-                    'worked_hours': round(record.get('worked_hours', 0), 2), #use .get() to avoid key errors and provide default
-                    'is_holiday': 'Yes' if record.get('is_holiday') else 'No'
-                })
-            else:
-                attendance_by_day.append({
-                    'day': day,
-                    'date': current_date.strftime('%Y-%m-%d'),
-                    'arrival_time': 'N/A',
-                    'leave_time': 'N/A',
-                    'is_absent': 'Yes',
-                    'worked_hours': 0,
-                    'is_holiday': 'No'
-                })
-
-    
-
-        conn.close()
-        print(f"Attendance Data: {attendance_by_day}") # Print the data being sent to the template
         return render_template('attendance_record.html', attendance=attendance_by_day, year=year, month=month, employee_id=employee_id)
 
     except mysql.connector.Error as err:
         error_message = f"Database Error: {err}"
-        print(error_message)
         traceback.print_exc()
-        return error_message, 500
+        return abort(500, description=error_message)
     except Exception as e:
         error_message = f"An unexpected error occurred: {e}"
-        print(error_message)
         traceback.print_exc()
-        return error_message, 500
-
+        return abort(500, description=error_message)
+    finally:
+        if conn.is_connected():
+            conn.close()
 
 @app.route('/add_employee', methods=['GET', 'POST'])
 def add_employee():
