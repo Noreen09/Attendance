@@ -630,6 +630,47 @@ def search_employee():
 
     return jsonify([{'id': emp['employee_id'], 'name': emp['name']} for emp in employees])
 
+@app.route('/attendance_tables')
+def attendance_tables():
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor()
+
+        # Fetch all attendance tables
+        cursor.execute("SHOW TABLES LIKE 'attendance_%'")
+        tables = [table[0] for table in cursor.fetchall()]  # Get table names
+        
+        conn.close()
+        
+        return render_template('attendance_tables.html', tables=tables)
+    
+    except mysql.connector.Error as err:
+        print(f"Database Error: {err}")
+        return f"Database Error: {err}", 500
+    except Exception as e:
+        print(f"Unexpected Error: {e}")
+        return f"Unexpected Error: {e}", 500
+
+@app.route('/attendance_table/<table_name>')
+def view_attendance_table(table_name):
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        query = f"SELECT * FROM {table_name}"
+        cursor.execute(query)
+        records = cursor.fetchall()
+
+        conn.close()
+
+        return render_template('view_attendance.html', table_name=table_name, records=records)
+
+    except mysql.connector.Error as err:
+        print(f"Database Error: {err}")
+        return f"Database Error: {err}", 500
+    except Exception as e:
+        print(f"Unexpected Error: {e}")
+        return f"Unexpected Error: {e}", 500
 
 
 if __name__ == '__main__':

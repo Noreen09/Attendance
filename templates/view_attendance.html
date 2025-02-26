@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - {{ table_name }}</title>
+</head>
+<body>
+    <h1>Attendance Records for {{ table_name }}</h1>
+    
+    {% if records %}
+        <table border="1">
+            <thead>
+                <tr>
+                    {% for key in records[0].keys() %}
+                        <th>{{ key }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        {% for value in record.values() %}
+                            <td>{{ value }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No records found in this table.</p>
+    {% endif %}
+
+    <br>
+    <a href="{{ url_for('attendance_tables') }}">Back to All Tables</a>
+</body>
+</html>
