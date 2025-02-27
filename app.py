@@ -252,13 +252,15 @@ def calculate_salary():
         cursor = conn.cursor(dictionary=True)
 
         # Fetch attendance data and join with employees table
+     # Fetch attendance data and join with employees table for the current month only
         cursor.execute(f'''
-            SELECT a.employee_id, e.basic_salary, SUM(a.worked_hours) AS total_hours, 
-                COUNT(IF(a.is_absent = 1, 1, NULL)) AS total_absences
-            FROM {table_name} a
-            JOIN employees e ON a.employee_id = e.employee_id
-            GROUP BY a.employee_id, e.basic_salary
-        ''')
+        SELECT a.employee_id, e.basic_salary, SUM(a.worked_hours) AS total_hours, 
+        COUNT(IF(a.is_absent = 1, 1, NULL)) AS total_absences
+        FROM {table_name} a
+        JOIN employees e ON a.employee_id = e.employee_id
+        WHERE MONTH(a.date) = {current_month} AND YEAR(a.date) = {current_year}  -- Ensure only the current month is included
+        GROUP BY a.employee_id, e.basic_salary
+       ''')
         attendance_data = cursor.fetchall()
 
         salaries = []
