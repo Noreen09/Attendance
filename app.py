@@ -675,6 +675,45 @@ def view_attendance_table(table_name):
         return f"Unexpected Error: {e}", 500
 
 
+
+import calendar
+
+@app.route('/attendance/<int:employee_id>/year/<int:year>', methods=['GET'])
+def yearly_attendance(employee_id, year):
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+
+        attendance_by_month = {}
+
+        for month in range(1, 13):  # Loop through January to December
+            table_name = f"attendance_{year}_{month:02d}"  # Example: attendance_2024_01, attendance_2024_02, etc.
+
+            # Check if table exists
+            cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
+            if not cursor.fetchone():
+                attendance_by_month[f"{calendar.month_name[month]}"] = "No Data"
+                continue
+
+            # Fetch attendance records for the given employee in this month
+            cursor.execute(f"""
+                SELECT date, arrival_time, leave_time, is_absent, worked_hours, is_holiday
+                FROM {table_name}
+                WHERE employee_id = %s
+            """, (employee_id,))
+            
+            records = cursor.fetchall()
+
+            attendance_by_month[f"{calendar.month_name[month]}"] = records if records else "No Data"
+
+        conn.close()
+        return render_template('yearly_attendance.html', employee_id=employee_id, year=year, attendance_by_month=attendance_by_month)
+    
+    except mysql.connector.Error as err:
+        print(f"Database Error: {err}")
+        return "Error fetching attendance records", 500
+
+
 if __name__ == '__main__':
     initialize()
     app.run(debug=True)
