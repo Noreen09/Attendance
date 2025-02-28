@@ -677,21 +677,23 @@ def view_attendance_table(table_name):
 
 
 import calendar
+from datetime import datetime
 
-import calendar
-
-@app.route('/attendance/<int:employee_id>/year/<int:year>', methods=['GET'])
-def yearly_attendance(employee_id, year):
+@app.route('/attendance/<int:employee_id>', methods=['GET'])
+def yearly_attendance(employee_id):
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
 
+        # Get the current year dynamically
+        current_year = datetime.now().year  # This will be 2025
+
         attendance_by_month = {}
 
         for month in range(1, 13):  # Loop through January to December
-            table_name = f"attendance_{year}_{month:02d}"  # Example: attendance_2025_01
+            table_name = f"attendance_{current_year}_{month:02d}"  # Example: attendance_2025_01
 
-            # Debugging: Print to check if table exists
+            # Debugging: Print table being checked
             print(f"Checking table: {table_name}")
 
             # Check if table exists
@@ -717,11 +719,13 @@ def yearly_attendance(employee_id, year):
 
         conn.close()
 
-        return render_template('yearly_attendance.html', employee_id=employee_id, year=year, attendance_by_month=attendance_by_month)
+        return render_template('yearly_attendance.html', employee_id=employee_id, year=current_year, attendance_by_month=attendance_by_month)
 
     except mysql.connector.Error as err:
         print(f"Database Error: {err}")
         return "Error fetching attendance records", 500
+
+
 
 if __name__ == '__main__':
     initialize()
