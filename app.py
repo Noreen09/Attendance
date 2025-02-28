@@ -678,6 +678,8 @@ def view_attendance_table(table_name):
 
 import calendar
 
+import calendar
+
 @app.route('/attendance/<int:employee_id>/year/<int:year>', methods=['GET'])
 def yearly_attendance(employee_id, year):
     try:
@@ -687,32 +689,39 @@ def yearly_attendance(employee_id, year):
         attendance_by_month = {}
 
         for month in range(1, 13):  # Loop through January to December
-            table_name = f"attendance_{year}_{month:02d}"  # Example: attendance_2024_01, attendance_2024_02, etc.
+            table_name = f"attendance_{year}_{month:02d}"  # Example: attendance_2025_01
+
+            # Debugging: Print to check if table exists
+            print(f"Checking table: {table_name}")
 
             # Check if table exists
             cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
             if not cursor.fetchone():
-                attendance_by_month[f"{calendar.month_name[month]}"] = "No Data"
-                continue
+                print(f"Table {table_name} does NOT exist")
+                attendance_by_month[f"{calendar.month_name[month]}"] = "No attendance data available for this month."
+                continue  # Skip to next month
 
-            # Fetch attendance records for the given employee in this month
-            cursor.execute(f"""
+            # Fetch attendance records for this employee
+            query = f"""
                 SELECT date, arrival_time, leave_time, is_absent, worked_hours, is_holiday
                 FROM {table_name}
                 WHERE employee_id = %s
-            """, (employee_id,))
-            
+            """
+            cursor.execute(query, (employee_id,))
             records = cursor.fetchall()
 
-            attendance_by_month[f"{calendar.month_name[month]}"] = records if records else "No Data"
+            # Debugging: Print fetched data
+            print(f"Month: {calendar.month_name[month]}, Records: {records}")
+
+            attendance_by_month[f"{calendar.month_name[month]}"] = records if records else "No attendance data available for this month."
 
         conn.close()
+
         return render_template('yearly_attendance.html', employee_id=employee_id, year=year, attendance_by_month=attendance_by_month)
-    
+
     except mysql.connector.Error as err:
         print(f"Database Error: {err}")
         return "Error fetching attendance records", 500
-
 
 if __name__ == '__main__':
     initialize()

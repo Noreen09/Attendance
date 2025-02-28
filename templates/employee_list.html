@@ -95,9 +95,9 @@
             <tbody>
                 {% for employee in employees %}
                 <tr>
-                    <a href="{{ url_for('yearly_attendance', employee_id=employee.employee_id, year=2024) }}">
+                    <td><a href="{{ url_for('yearly_attendance', employee_id=employee.employee_id, year=2024) }}">
                         {{ employee.employee_id }}
-                    </a>
+                    </a></td>
                     <td>{{ employee.name }}</td>
                     <td>{{ employee.position }}</td>
                     
