@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yearly Attendance Record</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mt-4">Attendance Record for Employee ID {{ employee_id }} - {{ year }}</h1>
+
+        {% for month, records in attendance_by_month.items() %}
+        <h2 class="mt-4">{{ month }}</h2>
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Arrival Time</th>
+                    <th>Leave Time</th>
+                    <th>Absent?</th>
+                    <th>Worked Hours</th>
+                    <th>Holiday?</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr>
+                    <td>{{ record.date.strftime('%A') }}</td>  <!-- Day of the week -->
+                    <td>{{ record.date.strftime('%d-%m-%Y') }}</td>  <!-- Date -->
+                    <td>{{ record.arrival_time }}</td>
+                    <td>{{ record.leave_time }}</td>
+                    <td>{{ 'Yes' if record.is_absent else 'No' }}</td>
+                    <td>{{ record.worked_hours }}</td>
+                    <td>{{ 'Yes' if record.is_holiday else 'No' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+        
+        <a href="{{ url_for('employee_list') }}" class="btn btn-secondary mt-3">Back to Employees</a>
+    </div>
+</body>
+</html>
