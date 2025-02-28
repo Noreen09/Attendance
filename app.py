@@ -609,69 +609,6 @@ def update_attendance():
         return jsonify({"success": False, "message": "Failed to update attendance. Please try again."}), 400
 
 
-@app.route('/attendance/<int:employee_id>/year/<int:year>')
-def yearly_attendance(employee_id, year):
-    try:
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor(dictionary=True)
-
-        attendance_by_month = {}
-
-        # Loop through each month and fetch data from the corresponding table
-        for month in range(1, 13):  # January (1) to December (12)
-            table_name = f"attendance_{year}_{month:02d}"
-
-            # Check if the table exists
-            cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
-            if not cursor.fetchone():
-                continue  # Skip if the table does not exist
-
-            # Fetch attendance records for the given employee in this month
-            query = f"""
-                SELECT 
-                    date, arrival_time, leave_time, is_absent, worked_hours, is_holiday
-                FROM {table_name}
-                WHERE employee_id = %s
-            """
-            cursor.execute(query, (employee_id,))
-            records = cursor.fetchall()
-
-            if records:
-                month_name = calendar.month_name[month]  # Convert month number to name (e.g., "January")
-                attendance_by_month[month_name] = []
-
-                for record in records:
-                    attendance_by_month[month_name].append({
-                        'date': record['date'].strftime('%Y-%m-%d'),
-                        'arrival_time': format_time(record.get('arrival_time')) if record.get('arrival_time') else 'N/A',
-                        'leave_time': format_time(record.get('leave_time')) if record.get('leave_time') else 'N/A',
-                        'is_absent': 'Yes' if record.get('is_absent') else 'No',
-                        'worked_hours': round(record.get('worked_hours', 2)) if record.get('worked_hours') else 0,
-                        'is_holiday': 'Yes' if record.get('is_holiday') else 'No'
-                    })
-
-        conn.close()
-
-        if not attendance_by_month:
-            return f"No attendance records found for Employee ID {employee_id} in {year}.", 404
-
-        return render_template('yearly_attendance.html', 
-                               employee_id=employee_id, 
-                               year=year, 
-                               attendance_by_month=attendance_by_month)
-
-    except mysql.connector.Error as err:
-        error_message = f"Database Error: {err}"
-        traceback.print_exc()
-        return abort(500, description=error_message)
-    except Exception as e:
-        error_message = f"An unexpected error occurred: {e}"
-        traceback.print_exc()
-        return abort(500, description=error_message)
-    finally:
-        if conn.is_connected():
-            conn.close()
-
 
 
 db_pool = pooling.MySQLConnectionPool(pool_name="mypool",
