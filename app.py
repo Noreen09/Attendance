@@ -402,7 +402,6 @@ def attendance_record(employee_id, year, month):
         if conn.is_connected():
             conn.close()
 
-
 @app.route('/add_employee', methods=['GET', 'POST'])
 def add_employee():
     if request.method == 'POST':
