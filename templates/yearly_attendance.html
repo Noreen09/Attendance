@@ -39,6 +39,7 @@
                         <th>Absent</th>
                         <th>Worked Hours</th>
                         <th>Holiday</th>
+                        <th>Action</th> <!-- Added Action Column -->
                     </tr>
                     {% for record in data.records %}
                         <tr>
@@ -48,6 +49,14 @@
                             <td>{{ "Yes" if record.is_absent else "No" }}</td>
                             <td>{{ record.worked_hours }}</td>
                             <td>{{ "Yes" if record.is_holiday else "No" }}</td>
+                            <td>
+                                <button class="edit-btn" onclick="showEditForm(
+                                    '{{ month }}', '{{ year }}', '{{ employee_id }}', 
+                                    '{{ record.date }}', '{{ record.arrival_time }}', 
+                                    '{{ record.leave_time }}', '{{ record.worked_hours }}', 
+                                    '{{ record.is_absent|lower }}', '{{ record.is_holiday|lower }}'
+                                )">Edit</button>
+                            </td>
                         </tr>
                     {% endfor %}
                 </table>
@@ -59,8 +68,10 @@
         {% endfor %}
     </div>
 
+
     <!-- MODAL FOR EDITING ATTENDANCE -->
-    <div id="attendanceModal" class="modal">
+     <!-- MODAL FOR EDITING ATTENDANCE -->
+     <div id="attendanceModal" class="modal">
         <div class="modal-content">
             <span class="close-btn" onclick="closeModal()">&times;</span>
             <h2>Edit Attendance</h2>
@@ -68,16 +79,16 @@
                 <label>Employee ID:</label>
                 <input type="text" id="modal_employee_id" readonly><br><br>
 
-                <label>Month & Year:</label>
+                <label>Date:</label>
                 <input type="text" id="modal_date" readonly><br><br>
 
-                <label>Average Arrival Time:</label>
+                <label>Arrival Time:</label>
                 <input type="text" id="modal_arrival_time"><br><br>
 
-                <label>Average Leave Time:</label>
+                <label>Leave Time:</label>
                 <input type="text" id="modal_leave_time"><br><br>
 
-                <label>Total Worked Hours:</label>
+                <label>Worked Hours:</label>
                 <input type="text" id="modal_worked_hours"><br><br>
 
                 <label>Absent:</label>
@@ -92,27 +103,19 @@
     </div>
 
     <script>
-        function showEditForm(month, year, employeeId) {
+        function showEditForm(month, year, employeeId, date, arrivalTime, leaveTime, workedHours, isAbsent, isHoliday) {
             document.getElementById('modal_employee_id').value = employeeId;
-            document.getElementById('modal_date').value = `${month} ${year}`;
+            document.getElementById('modal_date').value = `${date} (${month} ${year})`;
 
-            // Fetch monthly attendance data
-            fetch(`/get_monthly_attendance?employee_id=${employeeId}&month=${month}&year=${year}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('modal_arrival_time').value = data.average_arrival_time || "";
-                        document.getElementById('modal_leave_time').value = data.average_leave_time || "";
-                        document.getElementById('modal_worked_hours').value = data.total_worked_hours || "";
-                        document.getElementById('modal_is_absent').checked = data.is_absent;
-                        document.getElementById('modal_is_holiday').checked = data.is_holiday;
+            // Pre-fill modal form fields
+            document.getElementById('modal_arrival_time').value = arrivalTime || "";
+            document.getElementById('modal_leave_time').value = leaveTime || "";
+            document.getElementById('modal_worked_hours').value = workedHours || "";
+            document.getElementById('modal_is_absent').checked = isAbsent === "true"; 
+            document.getElementById('modal_is_holiday').checked = isHoliday === "true";
 
-                        document.getElementById('attendanceModal').style.display = "block";
-                    } else {
-                        alert("Error fetching data!");
-                    }
-                })
-                .catch(error => console.error("Error:", error));
+            // Show modal
+            document.getElementById('attendanceModal').style.display = "block";
         }
 
         function closeModal() {
@@ -121,16 +124,24 @@
 
         function saveChanges() {
             const employeeId = document.getElementById('modal_employee_id').value;
-            const [month, year] = document.getElementById('modal_date').value.split(" ");
+            const [date, monthYear] = document.getElementById('modal_date').value.split(" (");
+            const [monthName, year] = monthYear.replace(")", "").split(" ");
+
+            // Convert full month name to month number
+            const monthNames = ["January", "February", "March", "April", "May", "June", 
+                                "July", "August", "September", "October", "November", "December"];
+            const month = monthNames.indexOf(monthName) + 1; // Convert to number
+
             const arrivalTime = document.getElementById('modal_arrival_time').value;
             const leaveTime = document.getElementById('modal_leave_time').value;
             const workedHours = document.getElementById('modal_worked_hours').value;
-            const isAbsent = document.getElementById('modal_is_absent').checked;
-            const isHoliday = document.getElementById('modal_is_holiday').checked;
+            const isAbsent = document.getElementById('modal_is_absent').checked ? true : false;
+            const isHoliday = document.getElementById('modal_is_holiday').checked ? true : false;
 
             const data = {
                 employee_id: employeeId,
-                month: month,
+                date: date,
+                month: month,   // Now a number!
                 year: year,
                 arrival_time: arrivalTime,
                 leave_time: leaveTime,
@@ -151,13 +162,11 @@
                     closeModal();
                     location.reload();
                 } else {
-                    alert("Failed to update attendance.");
+                    alert("Failed to update attendance: " + result.message);
                 }
             })
             .catch(error => console.error("Error:", error));
         }
-    
-    
     </script>
 </body>
 </html>
