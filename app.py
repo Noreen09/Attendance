@@ -329,8 +329,6 @@ def calculate_salary():
                                current_month=current_month)
 
 
-
-
 from datetime import datetime, timedelta
 import calendar
 import mysql.connector
@@ -676,8 +674,6 @@ def view_attendance_table(table_name):
         print(f"Unexpected Error: {e}")
         return f"Unexpected Error: {e}", 500
 
-
-
 import calendar
 from datetime import datetime
 
@@ -726,9 +722,8 @@ def yearly_attendance(employee_id):
     except mysql.connector.Error as err:
         print(f"Database Error: {err}")
         return "Error fetching attendance records", 500
-
-
-
+    
+    
 if __name__ == '__main__':
     initialize()
     app.run(debug=True)
