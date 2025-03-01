@@ -743,41 +743,6 @@ def yearly_attendance(employee_id):
         return "Error fetching attendance records", 500
 
 
-@app.route('/update_attendance', methods=['POST'])
-def update_attendance():
-    try:
-        data = request.json
-        employee_id = data['employee_id']
-        date = data['date']
-        month = data['month']
-        year = data['year']
-        arrival_time = data['arrival_time']
-        leave_time = data['leave_time']
-        worked_hours = data['worked_hours']
-        is_absent = 1 if data['is_absent'] else 0
-        is_holiday = 1 if data['is_holiday'] else 0
-
-        table_name = f"attendance_{year}_{int(month):02d}"  # Example: attendance_2025_01
-
-        conn = mysql.connector.connect(**db_config)
-        cursor = conn.cursor()
-
-        update_query = f"""
-            UPDATE {table_name}
-            SET arrival_time = %s, leave_time = %s, worked_hours = %s, is_absent = %s, is_holiday = %s
-            WHERE employee_id = %s AND date = %s
-        """
-        cursor.execute(update_query, (arrival_time, leave_time, worked_hours, is_absent, is_holiday, employee_id, date))
-        conn.commit()
-        conn.close()
-
-        return jsonify({"success": True})
-
-    except mysql.connector.Error as err:
-        print(f"Database Error: {err}")
-        return jsonify({"success": False, "error": str(err)}), 500
-
-
 
 if __name__ == '__main__':
     initialize()

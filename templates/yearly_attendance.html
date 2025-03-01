@@ -39,7 +39,6 @@
                         <th>Absent</th>
                         <th>Worked Hours</th>
                         <th>Holiday</th>
-                        <th>Actions</th>
                     </tr>
                     {% for record in data.records %}
                         <tr>
@@ -49,11 +48,6 @@
                             <td>{{ "Yes" if record.is_absent else "No" }}</td>
                             <td>{{ record.worked_hours }}</td>
                             <td>{{ "Yes" if record.is_holiday else "No" }}</td>
-                            <td>
-                                <button class="edit-btn" onclick="showEditForm('{{ record.date }}', '{{ month }}', '{{ year }}', '{{ employee_id }}', '{{ record.arrival_time }}', '{{ record.leave_time }}', '{{ record.worked_hours }}', '{{ record.is_absent }}', '{{ record.is_holiday }}')">
-                                    Edit
-                                </button>
-                            </td>
                         </tr>
                     {% endfor %}
                 </table>
@@ -98,62 +92,71 @@
     </div>
 
     <script>
-        function showEditForm(date, month, year, employeeId, arrivalTime, leaveTime, workedHours, isAbsent, isHoliday) {
-    document.getElementById('modal_employee_id').value = employeeId;
-    document.getElementById('modal_date').value = `${date} ${month} ${year}`;
-    document.getElementById('modal_arrival_time').value = arrivalTime;
-    document.getElementById('modal_leave_time').value = leaveTime;
-    document.getElementById('modal_worked_hours').value = workedHours;
-    document.getElementById('modal_is_absent').checked = isAbsent === "Yes";
-    document.getElementById('modal_is_holiday').checked = isHoliday === "Yes";
+        function showEditForm(month, year, employeeId) {
+            document.getElementById('modal_employee_id').value = employeeId;
+            document.getElementById('modal_date').value = `${month} ${year}`;
 
-    document.getElementById('attendanceModal').style.display = "block";
-}
+            // Fetch monthly attendance data
+            fetch(`/get_monthly_attendance?employee_id=${employeeId}&month=${month}&year=${year}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('modal_arrival_time').value = data.average_arrival_time || "";
+                        document.getElementById('modal_leave_time').value = data.average_leave_time || "";
+                        document.getElementById('modal_worked_hours').value = data.total_worked_hours || "";
+                        document.getElementById('modal_is_absent').checked = data.is_absent;
+                        document.getElementById('modal_is_holiday').checked = data.is_holiday;
 
+                        document.getElementById('attendanceModal').style.display = "block";
+                    } else {
+                        alert("Error fetching data!");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        }
 
         function closeModal() {
             document.getElementById('attendanceModal').style.display = "none";
         }
 
         function saveChanges() {
-    const employeeId = document.getElementById('modal_employee_id').value;
-    const [date, month, year] = document.getElementById('modal_date').value.split(" ");
-    const arrivalTime = document.getElementById('modal_arrival_time').value;
-    const leaveTime = document.getElementById('modal_leave_time').value;
-    const workedHours = document.getElementById('modal_worked_hours').value;
-    const isAbsent = document.getElementById('modal_is_absent').checked;
-    const isHoliday = document.getElementById('modal_is_holiday').checked;
+            const employeeId = document.getElementById('modal_employee_id').value;
+            const [month, year] = document.getElementById('modal_date').value.split(" ");
+            const arrivalTime = document.getElementById('modal_arrival_time').value;
+            const leaveTime = document.getElementById('modal_leave_time').value;
+            const workedHours = document.getElementById('modal_worked_hours').value;
+            const isAbsent = document.getElementById('modal_is_absent').checked;
+            const isHoliday = document.getElementById('modal_is_holiday').checked;
 
-    const data = {
-        employee_id: employeeId,
-        date: date,
-        month: month,
-        year: year,
-        arrival_time: arrivalTime,
-        leave_time: leaveTime,
-        worked_hours: workedHours,
-        is_absent: isAbsent,
-        is_holiday: isHoliday
-    };
+            const data = {
+                employee_id: employeeId,
+                month: month,
+                year: year,
+                arrival_time: arrivalTime,
+                leave_time: leaveTime,
+                worked_hours: workedHours,
+                is_absent: isAbsent,
+                is_holiday: isHoliday
+            };
 
-    fetch('/update_attendance', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            alert("Attendance updated successfully!");
-            closeModal();
-            location.reload();
-        } else {
-            alert("Failed to update attendance.");
+            fetch('/update_attendance', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert("Attendance updated successfully!");
+                    closeModal();
+                    location.reload();
+                } else {
+                    alert("Failed to update attendance.");
+                }
+            })
+            .catch(error => console.error("Error:", error));
         }
-    })
-    .catch(error => console.error("Error:", error));
-}
-
+    
     
     </script>
 </body>
