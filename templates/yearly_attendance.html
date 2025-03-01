@@ -9,19 +9,30 @@
         .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
         h1 { text-align: center; color: #333; }
         .month { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; border-radius: 5px; background-color: #fff; }
-        .month h2 { margin-bottom: 10px; color: #5f9ea0; }
+        .month h2 { display: flex; justify-content: space-between; align-items: center; }
+        .edit-btn { padding: 5px 10px; background: #5f9ea0; color: white; border: none; cursor: pointer; border-radius: 4px; }
+        .edit-btn:hover { background: #468080; }
         .no-data { color: red; font-style: italic; }
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: #5f9ea0; color: white; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+        .modal-content { background: white; margin: 10% auto; padding: 20px; width: 40%; border-radius: 8px; position: relative; }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 20px; cursor: pointer; }
+        .save-btn { background: #5f9ea0; color: white; padding: 8px 12px; border: none; cursor: pointer; border-radius: 5px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Attendance for Employee {{ employee_id }} - Year {{ year }}</h1>
+
         {% for month, records in attendance_by_month.items() %}
         <div class="month">
-            <h2>{{ month }}</h2>
+            <h2>
+                {{ month }}
+                <button class="edit-btn" onclick="showEditForm('{{ month }}', '{{ year }}', '{{ employee_id }}')">Edit</button>
+            </h2>
+
             {% if records == "No attendance data available for this month." %}
                 <p class="no-data">{{ records }}</p>
             {% else %}
@@ -53,5 +64,104 @@
         </div>
         {% endfor %}
     </div>
+
+    <!-- MODAL FOR EDITING ATTENDANCE -->
+    <div id="attendanceModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h2>Edit Attendance</h2>
+            <form id="editAttendanceForm">
+                <label>Employee ID:</label>
+                <input type="text" id="modal_employee_id" readonly><br><br>
+
+                <label>Month & Year:</label>
+                <input type="text" id="modal_date" readonly><br><br>
+
+                <label>Average Arrival Time:</label>
+                <input type="text" id="modal_arrival_time"><br><br>
+
+                <label>Average Leave Time:</label>
+                <input type="text" id="modal_leave_time"><br><br>
+
+                <label>Total Worked Hours:</label>
+                <input type="text" id="modal_worked_hours"><br><br>
+
+                <label>Absent:</label>
+                <input type="checkbox" id="modal_is_absent"><br><br>
+
+                <label>Holiday:</label>
+                <input type="checkbox" id="modal_is_holiday"><br><br>
+
+                <button type="button" class="save-btn" onclick="saveChanges()">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showEditForm(month, year, employeeId) {
+            document.getElementById('modal_employee_id').value = employeeId;
+            document.getElementById('modal_date').value = `${month} ${year}`;
+
+            // Fetch monthly attendance data
+            fetch(`/get_monthly_attendance?employee_id=${employeeId}&month=${month}&year=${year}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('modal_arrival_time').value = data.average_arrival_time || "";
+                        document.getElementById('modal_leave_time').value = data.average_leave_time || "";
+                        document.getElementById('modal_worked_hours').value = data.total_worked_hours || "";
+                        document.getElementById('modal_is_absent').checked = data.is_absent;
+                        document.getElementById('modal_is_holiday').checked = data.is_holiday;
+
+                        document.getElementById('attendanceModal').style.display = "block";
+                    } else {
+                        alert("Error fetching data!");
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+        }
+
+        function closeModal() {
+            document.getElementById('attendanceModal').style.display = "none";
+        }
+
+        function saveChanges() {
+            const employeeId = document.getElementById('modal_employee_id').value;
+            const [month, year] = document.getElementById('modal_date').value.split(" ");
+            const arrivalTime = document.getElementById('modal_arrival_time').value;
+            const leaveTime = document.getElementById('modal_leave_time').value;
+            const workedHours = document.getElementById('modal_worked_hours').value;
+            const isAbsent = document.getElementById('modal_is_absent').checked;
+            const isHoliday = document.getElementById('modal_is_holiday').checked;
+
+            const data = {
+                employee_id: employeeId,
+                month: month,
+                year: year,
+                arrival_time: arrivalTime,
+                leave_time: leaveTime,
+                worked_hours: workedHours,
+                is_absent: isAbsent,
+                is_holiday: isHoliday
+            };
+
+            fetch('/update_attendance', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert("Attendance updated successfully!");
+                    closeModal();
+                    location.reload();
+                } else {
+                    alert("Failed to update attendance.");
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        }
+    </script>
 </body>
 </html>

@@ -329,6 +329,8 @@ def calculate_salary():
                                current_month=current_month)
 
 
+
+
 from datetime import datetime, timedelta
 import calendar
 import mysql.connector
