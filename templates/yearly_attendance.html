@@ -123,50 +123,54 @@
         }
 
         function saveChanges() {
-            const employeeId = document.getElementById('modal_employee_id').value;
-            const [date, monthYear] = document.getElementById('modal_date').value.split(" (");
-            const [monthName, year] = monthYear.replace(")", "").split(" ");
+    const employeeId = document.getElementById('modal_employee_id').value;
+    const [date, monthYear] = document.getElementById('modal_date').value.split(" (");
+    const [monthName, year] = monthYear.replace(")", "").split(" ");
 
-            // Convert full month name to month number
-            const monthNames = ["January", "February", "March", "April", "May", "June", 
-                                "July", "August", "September", "October", "November", "December"];
-            const month = monthNames.indexOf(monthName) + 1; // Convert to number
+    // Convert full month name to month number
+    const monthNames = ["January", "February", "March", "April", "May", "June", 
+                        "July", "August", "September", "October", "November", "December"];
+    const month = monthNames.indexOf(monthName) + 1; // Convert to number
 
-            const arrivalTime = document.getElementById('modal_arrival_time').value;
-            const leaveTime = document.getElementById('modal_leave_time').value;
-            const workedHours = document.getElementById('modal_worked_hours').value;
-            const isAbsent = document.getElementById('modal_is_absent').checked ? true : false;
-            const isHoliday = document.getElementById('modal_is_holiday').checked ? true : false;
+    const arrivalTime = document.getElementById('modal_arrival_time').value;
+    const leaveTime = document.getElementById('modal_leave_time').value;
+    const workedHours = document.getElementById('modal_worked_hours').value;
+    const isAbsent = document.getElementById('modal_is_absent').checked ? true : false;
+    const isHoliday = document.getElementById('modal_is_holiday').checked ? true : false;
 
-            const data = {
-                employee_id: employeeId,
-                date: date,
-                month: month,   // Now a number!
-                year: year,
-                arrival_time: arrivalTime,
-                leave_time: leaveTime,
-                worked_hours: workedHours,
-                is_absent: isAbsent,
-                is_holiday: isHoliday
-            };
+    const data = {
+        employee_id: employeeId,
+        date: date,
+        month: month,   // Now a number!
+        year: year,
+        arrival_time: arrivalTime,
+        leave_time: leaveTime,
+        worked_hours: workedHours,
+        is_absent: isAbsent,
+        is_holiday: isHoliday
+    };
 
-            fetch('/update_attendance', {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.success) {
-                    alert("Attendance updated successfully!");
-                    closeModal();
-                    location.reload();
-                } else {
-                    alert("Failed to update attendance: " + result.message);
-                }
-            })
-            .catch(error => console.error("Error:", error));
+    fetch('/update_attendance', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert("Attendance updated successfully!");
+            closeModal();
+            location.reload();
+        } else {
+            alert("Failed to update attendance: " + result.message);
         }
+    })
+    .catch(error => console.error("Error:", error));
+}
+
+    
+    
+    
     </script>
 </body>
 </html>

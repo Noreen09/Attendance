@@ -676,11 +676,6 @@ import calendar
 from datetime import datetime
 
 
-import calendar
-from datetime import datetime
-
-import calendar
-from datetime import datetime
 
 import calendar
 from datetime import datetime
@@ -748,7 +743,8 @@ def update_attendance():
     try:
         data = request.json
         employee_id = data.get("employee_id")
-        month = data.get("month")
+        date = data.get("date")  # Ensure date is properly formatted
+        month = int(data.get("month"))  # Ensure month is passed as an integer
         year = data.get("year")
         arrival_time = data.get("arrival_time")
         leave_time = data.get("leave_time")
@@ -756,10 +752,7 @@ def update_attendance():
         is_absent = data.get("is_absent")
         is_holiday = data.get("is_holiday")
 
-        # Convert month name to number
-        month_number = list(calendar.month_name).index(month)
-
-        table_name = f"attendance_{year}_{month_number:02d}"  # Example: attendance_2025_01
+        table_name = f"attendance_{year}_{month:02d}"  # Example: attendance_2025_01
 
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor()
@@ -773,9 +766,9 @@ def update_attendance():
         update_query = f"""
             UPDATE {table_name}
             SET arrival_time = %s, leave_time = %s, worked_hours = %s, is_absent = %s, is_holiday = %s
-            WHERE employee_id = %s
+            WHERE employee_id = %s AND date = %s
         """
-        cursor.execute(update_query, (arrival_time, leave_time, worked_hours, is_absent, is_holiday, employee_id))
+        cursor.execute(update_query, (arrival_time, leave_time, worked_hours, is_absent, is_holiday, employee_id, date))
         conn.commit()
         conn.close()
 
@@ -784,8 +777,6 @@ def update_attendance():
     except mysql.connector.Error as err:
         print(f"Database Error: {err}")
         return jsonify({"success": False, "message": "Error updating attendance."}), 500
-
-
 if __name__ == '__main__':
     initialize()
     app.run(debug=True)
