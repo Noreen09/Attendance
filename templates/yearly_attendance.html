@@ -22,6 +22,7 @@
         .save-btn { background: #5f9ea0; color: white; padding: 8px 12px; border: none; cursor: pointer; border-radius: 5px; }
     </style>
 </head>
+{% include 'navbar.html' %}
 <body>
     <div class="container">
         <h1>Attendance for Employee {{ employee_id }} - Year {{ year }}</h1>
@@ -29,7 +30,12 @@
         {% for month, records in attendance_by_month.items() %}
         <div class="month">
             <h2>
-                {{ month }}
+                {{ month }} - Total Worked Hours: 
+    {% if attendance_by_month[month] != "No attendance data available for this month." %}
+        {{ attendance_by_month[month].total_worked_hours }}
+    {% else %}
+        N/A
+    {% endif %}
                 <button class="edit-btn" onclick="showEditForm('{{ month }}', '{{ year }}', '{{ employee_id }}')">Edit</button>
             </h2>
 
