@@ -29,9 +29,10 @@
         {% for month, records in attendance_by_month.items() %}
         <div class="month">
             <h2>
-                {{ month }}
+                {{ month }} - Total Worked Hours: {{ records.total_worked_hours if records != "No attendance data available for this month." else "N/A" }}
                 <button class="edit-btn" onclick="showEditForm('{{ month }}', '{{ year }}', '{{ employee_id }}')">Edit</button>
             </h2>
+            
 
             {% if records == "No attendance data available for this month." %}
                 <p class="no-data">{{ records }}</p>

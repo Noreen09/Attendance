@@ -101,8 +101,6 @@ def insert_attendance(employee_id, arrival_time, leave_time, is_absent, worked_h
         if conn.is_connected():
             conn.close()
 
-
-
 # Function to clean up old attendance tables (older than 12 months)
 def cleanup_old_tables():
     try:
@@ -681,52 +679,51 @@ from datetime import datetime
 import calendar
 from datetime import datetime
 
-@app.route('/attendance/<int:employee_id>', methods=['GET'])
-def yearly_attendance(employee_id):
+@app.route('/employee/<int:employee_id>/attendance/<int:year>')
+def employee_attendance(employee_id, year):
     try:
         conn = mysql.connector.connect(**db_config)
         cursor = conn.cursor(dictionary=True)
 
-        # Get the current year dynamically
-        current_year = datetime.now().year  # This will be 2025
-
         attendance_by_month = {}
 
-        for month in range(1, 13):  # Loop through January to December
-            table_name = f"attendance_{current_year}_{month:02d}"  # Example: attendance_2025_01
-
-            # Debugging: Print table being checked
-            print(f"Checking table: {table_name}")
-
-            # Check if table exists
+        for month in range(1, 13):
+            table_name = f"attendance_{year}_{month:02d}"
             cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
-            if not cursor.fetchone():
-                print(f"Table {table_name} does NOT exist")
-                attendance_by_month[f"{calendar.month_name[month]}"] = "No attendance data available for this month."
-                continue  # Skip to next month
+            result = cursor.fetchone()
 
-            # Fetch attendance records for this employee
-            query = f"""
-                SELECT date, arrival_time, leave_time, is_absent, worked_hours, is_holiday
-                FROM {table_name}
-                WHERE employee_id = %s
-            """
-            cursor.execute(query, (employee_id,))
-            records = cursor.fetchall()
+            if result:
+                query = f"""
+                    SELECT date, arrival_time, leave_time, is_absent, worked_hours, is_holiday 
+                    FROM {table_name} 
+                    WHERE employee_id = %s
+                """
+                cursor.execute(query, (employee_id,))
+                records = cursor.fetchall()
 
-            # Debugging: Print fetched data
-            print(f"Month: {calendar.month_name[month]}, Records: {records}")
-
-            attendance_by_month[f"{calendar.month_name[month]}"] = records if records else "No attendance data available for this month."
+                if records:
+                    total_worked_hours = sum(record['worked_hours'] for record in records if record['worked_hours'] is not None)
+                    attendance_by_month[calendar.month_name[month]] = {
+                        "records": records,
+                        "total_worked_hours": total_worked_hours
+                    }
+                else:
+                    attendance_by_month[calendar.month_name[month]] = "No attendance data available for this month."
+            else:
+                attendance_by_month[calendar.month_name[month]] = "No attendance data available for this month."
 
         conn.close()
 
-        return render_template('yearly_attendance.html', employee_id=employee_id, year=current_year, attendance_by_month=attendance_by_month)
+        return render_template("attendance.html", employee_id=employee_id, year=year, attendance_by_month=attendance_by_month)
 
     except mysql.connector.Error as err:
-        print(f"Database Error: {err}")
-        return "Error fetching attendance records", 500
-  
+        print(f"MySQL Error fetching attendance: {err}")
+        return "Database error", 500
+    except Exception as e:
+        print(f"General Error fetching attendance: {e}")
+        traceback.print_exc()
+        return "Internal server error", 500
+
 
 if __name__ == '__main__':
     initialize()
