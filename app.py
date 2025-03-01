@@ -682,6 +682,9 @@ from datetime import datetime
 import calendar
 from datetime import datetime
 
+import calendar
+from datetime import datetime
+
 @app.route('/attendance/<int:employee_id>', methods=['GET'])
 def yearly_attendance(employee_id):
     try:
@@ -703,7 +706,11 @@ def yearly_attendance(employee_id):
             cursor.execute(f"SHOW TABLES LIKE '{table_name}'")
             if not cursor.fetchone():
                 print(f"Table {table_name} does NOT exist")
-                attendance_by_month[f"{calendar.month_name[month]}"] = "No attendance data available for this month."
+                attendance_by_month[f"{calendar.month_name[month]}"] = {
+                    "records": [],
+                    "total_worked_hours": 0,
+                    "message": "No attendance data available for this month."
+                }
                 continue  # Skip to next month
 
             # Fetch attendance records for this employee
@@ -716,17 +723,16 @@ def yearly_attendance(employee_id):
             records = cursor.fetchall()
 
             # Calculate total worked hours for the month
-            if records:
-                total_worked_hours = sum(record['worked_hours'] for record in records if record['worked_hours'] is not None)
-                attendance_by_month[f"{calendar.month_name[month]}"] = {
-                    "records": records,
-                    "total_worked_hours": total_worked_hours
-                }
-            else:
-                attendance_by_month[f"{calendar.month_name[month]}"] = "No attendance data available for this month."
+            total_worked_hours = sum(record['worked_hours'] for record in records if record['worked_hours'] is not None) if records else 0
+
+            attendance_by_month[f"{calendar.month_name[month]}"] = {
+                "records": records,
+                "total_worked_hours": total_worked_hours,
+                "message": "" if records else "No attendance data available for this month."
+            }
 
             # Debugging: Print fetched data
-            print(f"Month: {calendar.month_name[month]}, Records: {records}, Total Worked Hours: {total_worked_hours if records else 'N/A'}")
+            print(f"Month: {calendar.month_name[month]}, Total Worked Hours: {total_worked_hours}, Records: {records}")
 
         conn.close()
 
@@ -735,6 +741,7 @@ def yearly_attendance(employee_id):
     except mysql.connector.Error as err:
         print(f"Database Error: {err}")
         return "Error fetching attendance records", 500
+
 
 
 if __name__ == '__main__':

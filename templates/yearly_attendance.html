@@ -25,49 +25,37 @@
 {% include 'navbar.html' %}
 <body>
     <div class="container">
-        <h1>Attendance for Employee {{ employee_id }} - Year {{ year }}</h1>
+        <h1>Attendance Records for Employee {{ employee_id }} - Year {{ year }}</h1>
 
-        {% for month, records in attendance_by_month.items() %}
-        <div class="month">
-            <h2>
-                {{ month }} - Total Worked Hours: 
-    {% if attendance_by_month[month] != "No attendance data available for this month." %}
-        {{ attendance_by_month[month].total_worked_hours }}
-    {% else %}
-        N/A
-    {% endif %}
-                <button class="edit-btn" onclick="showEditForm('{{ month }}', '{{ year }}', '{{ employee_id }}')">Edit</button>
-            </h2>
-
-            {% if records == "No attendance data available for this month." %}
-                <p class="no-data">{{ records }}</p>
-            {% else %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Arrival Time</th>
-                            <th>Leave Time</th>
-                            <th>Absent</th>
-                            <th>Worked Hours</th>
-                            <th>Holiday</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for record in records %}
+        {% for month, data in attendance_by_month.items() %}
+            <h2>{{ month }} - Total Worked Hours: {{ data.total_worked_hours }}</h2>
+            
+            {% if data.records %}
+                <table border="1">
+                    <tr>
+                        <th>Date</th>
+                        <th>Arrival Time</th>
+                        <th>Leave Time</th>
+                        <th>Absent</th>
+                        <th>Worked Hours</th>
+                        <th>Holiday</th>
+                    </tr>
+                    {% for record in data.records %}
                         <tr>
                             <td>{{ record.date }}</td>
-                            <td>{{ record.arrival_time or '-' }}</td>
-                            <td>{{ record.leave_time or '-' }}</td>
-                            <td>{{ 'Yes' if record.is_absent else 'No' }}</td>
-                            <td>{{ record.worked_hours or '-' }}</td>
-                            <td>{{ 'Yes' if record.is_holiday else 'No' }}</td>
+                            <td>{{ record.arrival_time }}</td>
+                            <td>{{ record.leave_time }}</td>
+                            <td>{{ "Yes" if record.is_absent else "No" }}</td>
+                            <td>{{ record.worked_hours }}</td>
+                            <td>{{ "Yes" if record.is_holiday else "No" }}</td>
                         </tr>
-                        {% endfor %}
-                    </tbody>
+                    {% endfor %}
                 </table>
+            {% else %}
+                <p>{{ data.message }}</p>
             {% endif %}
-        </div>
+        
+            <hr>
         {% endfor %}
     </div>
 
