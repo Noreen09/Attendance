@@ -40,7 +40,7 @@
                         <th>Absent</th>
                         <th>Worked Hours</th>
                         <th>Holiday</th>
-                        <th>Action</th> <!-- Added Action Column -->
+                       
                     </tr>
                     {% for record in data.records %}
                         <tr>
@@ -50,14 +50,7 @@
                             <td>{{ "Yes" if record.is_absent else "No" }}</td>
                             <td>{{ record.worked_hours }}</td>
                             <td>{{ "Yes" if record.is_holiday else "No" }}</td>
-                            <td>
-                                <button class="edit-btn" onclick="showEditForm(
-                                    '{{ month }}', '{{ year }}', '{{ employee_id }}', 
-                                    '{{ record.date }}', '{{ record.arrival_time }}', 
-                                    '{{ record.leave_time }}', '{{ record.worked_hours }}', 
-                                    '{{ record.is_absent|lower }}', '{{ record.is_holiday|lower }}'
-                                )">Edit</button>
-                            </td>
+                            
                         </tr>
                     {% endfor %}
                 </table>
