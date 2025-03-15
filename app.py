@@ -26,8 +26,8 @@ if not app.secret_key:
 # MySQL Connection Setup
 db_config = {
     'host': 'localhost',
-    'user': 'flaskuser',  
-    'password': 'M1y2s3q4l5!6',  
+    'user': 'root',  
+    'password': 'S1q2l3!4',  
     'database': 'employee_system'
 }
 
